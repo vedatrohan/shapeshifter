@@ -7,6 +7,12 @@ classdef DHT_Object
         complexityTangential = 5;
         lengthAxial = 0.15;
         radiusTangential = 0.1;
+
+        concentrationAxial = -0.3;
+
+        parabolaA = 0.1;
+        parabolaB = 0.1;
+        parabolaC = 0.1;
     end
     
     methods
