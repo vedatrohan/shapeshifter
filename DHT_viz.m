@@ -11,11 +11,6 @@ Ld = 1.001;       % Height of the paraboloid (must be > L)
 N1 = zeros(q+1, p, 3); 
 N2 = zeros(q+1, p, 3);
 
-theta1 = [0,0,0,0,0,0,0,0;0,0,1,-1,-1,0,0,-1];
-theta2 = [0,-1,0,0,1,0,-1,0,0; 1,0,-1,0,0,1,-1,0,0];
-theta3 = [0,0,0,0,0,0,-1,0;0,0,0,0,0,0,0,1];
-theta4 = [0,1,-1,0,0,1,1,0; 0,0,0,0,0,0,0,0];
-
 %% 3. Calculate Node Coordinates
 for i = 0:q
     for k = 0:p-1
@@ -78,6 +73,8 @@ for i = 0:q-1
         
         n1_next_kplus = squeeze(N1(i+2, k_plus_1+1, :));
         n1_current_kminus = squeeze(N1(i+1, k_minus_1+1, :));
+        n2_next_kplus = squeeze(N2(i+2, k_plus_1+1, :));
+        n2_current_kminus = squeeze(N2(i+1, k_minus_1+1, :));
         
         % Draw Bar 1 (Standard for all rows)
         plot3([n1_current(1), n1_next_kplus(1)], ...
@@ -88,6 +85,8 @@ for i = 0:q-1
         if i < q - 1
             % Internal rows: standard double-helix connection
             n2_next_kminus = squeeze(N2(i+2, k_minus_1+1, :));
+            n1_next_kminus = squeeze(N1(i+2, k_minus_1+1, :));
+
             plot3([n2_current(1), n2_next_kminus(1)], ...
                   [n2_current(2), n2_next_kminus(2)], ...
                   [n2_current(3), n2_next_kminus(3)], 'b-', 'LineWidth', 2)
@@ -96,13 +95,34 @@ for i = 0:q-1
                   [n1_current(2), n2_current(2)], ...
                   [n1_current(3), n2_current(3)], 'r--', 'LineWidth', 1) %this is s1
 
-            % plot3([n1_current_kminus(1), n2_current(1)], ...
-            %       [n1_current_kminus(2), n2_current(2)], ...
-            %       [n1_current_kminus(3), n2_current(3)], 'r--', 'LineWidth', 1) %this is s2
+            % plot3([n2_current(1), n2_current_kminus(1)], ...
+            %       [n2_current(2), n2_current_kminus(2)], ...
+            %       [n2_current(3), n2_current_kminus(3)], 'r--', 'LineWidth', 1) %this is s2
             % 
-            % plot3([n1_current_kminus(1), n2_current(1)], ...
-            %       [n1_current_kminus(2), n2_current(2)], ...
-            %       [n1_current_kminus(3), n2_current(3)], 'r--', 'LineWidth', 1) %this is s3
+            % plot3([n1_current_kminus(1), n2_current_kminus(1)], ...
+            %       [n1_current_kminus(2), n2_current_kminus(2)], ...
+            %       [n1_current_kminus(3), n2_current_kminus(3)], 'r--', 'LineWidth', 1) %this is s3
+            % 
+            % plot3([n1_current(1), n2_current_kminus(1)], ...
+            %       [n1_current(2), n2_current_kminus(2)], ...
+            %       [n1_current(3), n2_current_kminus(3)], 'r--', 'LineWidth', 1) %this is s4
+            % 
+            % plot3([n2_current(1), n2_current_kminus(1)], ...
+            %       [n2_current(2), n2_current_kminus(2)], ...
+            %       [n2_current(3), n2_current_kminus(3)], 'r--', 'LineWidth', 1) %this is s5
+            % 
+            % % plot3([n2_current(1), n2_current(1)], ...
+            % %       [n2_current(2), n2_current(2)], ...
+            % %       [n2_current(3), n2_current(3)], 'r--', 'LineWidth', 1)
+            % %       %this is s6
+            % 
+            % plot3([n1_current(1), n1_next_kminus(1)], ...
+            %       [n1_current(2), n1_next_kminus(2)], ...
+            %       [n1_current(3), n1_next_kminus(3)], 'r--', 'LineWidth', 1) %this is s7
+            % 
+            % plot3([n1_current(1), n2_next_kminus(1)], ...
+            %       [n1_current(2), n2_next_kminus(2)], ...
+            %       [n1_current(3), n2_next_kminus(3)], 'r--', 'LineWidth', 1) %this is s8
 
         else
             % Top row (i = q-1): standard b2 is removed. 
@@ -118,5 +138,5 @@ for i = 0:q-1
     end
 end
 
-legend('n_1 Nodes', 'n_2 Nodes', 'best');
+legend('n_1 Nodes', 'n_2 Nodes');
 hold off;
