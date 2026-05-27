@@ -35,3 +35,11 @@ codegen/
 # buildtool cache folder
 .buildtool/
 
+# Python environment and cache
+.venv/
+__pycache__/
+*.pyc
+
+# SolidWorks specific temp files
+~$*
+*.bak
