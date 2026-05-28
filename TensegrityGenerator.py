@@ -1,11 +1,21 @@
+import math
+
 import win32com.client
+from win32com.client import VARIANT
 import numpy as np
 import matplotlib.pyplot as plt
+import pythoncom
+
+# Make sure both Python and Solidworks are running at the same administrative level, otherwise we get "operation unavailable" error
 
 class DHT:
 
     def RGBtoSW(self, r, g, b):
         return b * 65536 + g * 256 + r
+
+    stringAddress = "C:\\Program Files\\SOLIDWORKS Corp\\SOLIDWORKS\\data\\weldment profiles\\Shapeshifter Standard\\Tensegrity String 3 mm\\3mm.SLDLFP"
+    barAddress = "C:\\Program Files\\SOLIDWORKS Corp\\SOLIDWORKS\\data\\weldment profiles\\Shapeshifter Standard\\Tensegrity Bar 6 mm\\6mm Bar.SLDLFP"
+    nodeRadius = 0.01
 
     def __init__(self, p = 5, q = 4, L = 1, a = (1/16), Ld = 1.005):
         self.p = p
@@ -124,17 +134,47 @@ class DHT:
         blue_color = self.RGBtoSW(0, 0, 255)
         black_color = self.RGBtoSW(0, 0, 0)
 
+        helix1Rods = []
+        helix2Rods = []
+        strings = []
+
         try:
             sw_app = win32com.client.GetActiveObject("SldWorks.Application")
+
+            if not sw_app:
+                raise Exception("Error: SolidWorks application not found. Make sure SolidWorks is running.")
+            else:
+                print("Application connected")
+
             sw_model = sw_app.ActiveDoc
 
             if not sw_model:
                 raise Exception("Error: No active SolidWorks document found. Open a Part file first.")
+            else:
+                print("Document attached")
+        
         
             sw_sketch_mgr = sw_model.SketchManager
+            sw_feature_mgr = sw_model.FeatureManager
+            sw_sel_mgr = sw_model.SelectionManager
 
             sw_sketch_mgr.Insert3DSketch(True)
             sw_model.ActiveView.EnableGraphicsUpdate = False
+
+            '''
+            #Generate the initial node sphere
+            sw_model.Extension.SelectByID2("Front Plane", "PLANE", 0, 0, 0, False, 0, None, 0)
+            sw_sketch_mgr.InsertSketch(True)
+            axis_line = sw_sketch_mgr.CreateLine(0, DHT.nodeRadius, 0, 0, -DHT.nodeRadius, 0)
+
+            axis_line.ConstructionGeometry = True 
+            sw_sketch_mgr.CreateArc(0, 0, 0, 0, DHT.nodeRadius, 0, 0, -DHT.nodeRadius, 0, -1)
+            sw_sketch_mgr.InsertSketch(True) 
+            angle_rad = 2 * math.pi 
+
+            revolve_feat = sw_feature_mgr.FeatureRevolve2(True, True, False, False, False, False, 0, 0, angle_rad, 0, False, False, 0.01, 0.01, 0, 0, 0, True, True, True)
+
+            '''
 
             for i in range(self.q+1):
                     for k in range(self.p):
@@ -159,42 +199,133 @@ class DHT:
                             n2_i_km1   = self.N2[i, km1] * scaling
                             n1_ip1_km1 = self.N1[i + 1, km1] * scaling
 
-                            sw_sketch_mgr.CreateLine(n1_ik[0], n1_ik[1], n1_ik[2], n1_ip1_kp1[0], n1_ip1_kp1[1], n1_ip1_kp1[2]).Color = int(red_color)
+                            h1Rod = sw_sketch_mgr.CreateLine(n1_ik[0], n1_ik[1], n1_ik[2], n1_ip1_kp1[0], n1_ip1_kp1[1], n1_ip1_kp1[2])
+                            h1Rod.Color = int(red_color)
+                            helix1Rods.append(h1Rod)
 
                             if i < self.q - 1:
                                 n2_ip1_km1 = self.N2[i + 1, km1] * scaling
                                 n2_x1, n2_y1, n2_z1 = self.N2[i, k_curr] * scaling
                                 n2_x2, n2_y2, n2_z2 = self.N2[i + 1, km1] * scaling
                                 
-                                sw_sketch_mgr.CreateLine(n2_x2, n2_y2, n2_z2, n2_x1, n2_y1, n2_z1).Color = int(blue_color)
-                                
-                                sw_sketch_mgr.CreateLine(n2_i_km1[0], n2_i_km1[1], n2_i_km1[2], n2_ip1_km1[0], n2_ip1_km1[1], n2_ip1_km1[2]).Color = int(black_color)
+                                h2Rod = sw_sketch_mgr.CreateLine(n2_x2, n2_y2, n2_z2, n2_x1, n2_y1, n2_z1)
+                                h2Rod.Color = int(blue_color)
+                                helix2Rods.append(h2Rod)
+
+                                s8 = sw_sketch_mgr.CreateLine(n2_i_km1[0], n2_i_km1[1], n2_i_km1[2], n2_ip1_km1[0], n2_ip1_km1[1], n2_ip1_km1[2])
+                                s8.Color = int(black_color)
+                                strings.append(s8)
                             else:
                                 n1_top = self.N1[i+1, k_curr] * scaling
-                                sw_sketch_mgr.CreateLine(n2_ik[0], n2_ik[1], n2_ik[2], n1_top[0], n1_top[1], n1_top[2]).Color = int(blue_color)
+
+                                h2Rod = sw_sketch_mgr.CreateLine(n2_ik[0], n2_ik[1], n2_ik[2], n1_top[0], n1_top[1], n1_top[2])
+                                h2Rod.Color = int(blue_color)
+                                helix2Rods.append(h2Rod)
 
                             # s1
-                            sw_sketch_mgr.CreateLine(n2_ik[0], n2_ik[1], n2_ik[2], n1_ik[0], n1_ik[1], n1_ik[2]).Color = int(black_color)
+                            s1 = sw_sketch_mgr.CreateLine(n2_ik[0], n2_ik[1], n2_ik[2], n1_ik[0], n1_ik[1], n1_ik[2])
+                            s1.Color = int(black_color)
+                            strings.append(s1)
                             # s2
-                            sw_sketch_mgr.CreateLine(n2_ik[0], n2_ik[1], n2_ik[2], n1_ip1_k[0], n1_ip1_k[1], n1_ip1_k[2]).Color = int(black_color)
+                            s2 = sw_sketch_mgr.CreateLine(n2_ik[0], n2_ik[1], n2_ik[2], n1_ip1_k[0], n1_ip1_k[1], n1_ip1_k[2])
+                            s2.Color = int(black_color)
+                            strings.append(s2)
                             # s3
-                            sw_sketch_mgr.CreateLine(n1_ip1_k[0], n1_ip1_k[1], n1_ip1_k[2], n2_i_km1[0], n2_i_km1[1], n2_i_km1[2]).Color = int(black_color)
+                            s3 = sw_sketch_mgr.CreateLine(n1_ip1_k[0], n1_ip1_k[1], n1_ip1_k[2], n2_i_km1[0], n2_i_km1[1], n2_i_km1[2])
+                            s3.Color = int(black_color)
+                            strings.append(s3)
                             # s4
-                            sw_sketch_mgr.CreateLine(n2_i_km1[0], n2_i_km1[1], n2_i_km1[2], n1_ik[0], n1_ik[1], n1_ik[2]).Color = int(black_color)
+                            s4 = sw_sketch_mgr.CreateLine(n2_i_km1[0], n2_i_km1[1], n2_i_km1[2], n1_ik[0], n1_ik[1], n1_ik[2])
+                            s4.Color = int(black_color)
+                            strings.append(s4)
                             # s5
-                            sw_sketch_mgr.CreateLine(n2_i_km1[0], n2_i_km1[1], n2_i_km1[2], n2_ik[0], n2_ik[1], n2_ik[2]).Color = int(black_color)
+                            s5 = sw_sketch_mgr.CreateLine(n2_i_km1[0], n2_i_km1[1], n2_i_km1[2], n2_ik[0], n2_ik[1], n2_ik[2])
+                            s5.Color = int(black_color)
+                            strings.append(s5)
                             # s6
-                            sw_sketch_mgr.CreateLine(n1_ik[0], n1_ik[1], n1_ik[2], n1_ip1_k[0], n1_ip1_k[1], n1_ip1_k[2]).Color = int(black_color)
+                            s6 = sw_sketch_mgr.CreateLine(n1_ik[0], n1_ik[1], n1_ik[2], n1_ip1_k[0], n1_ip1_k[1], n1_ip1_k[2])
+                            s6.Color = int(black_color)
+                            strings.append(s6)
                             # s7
-                            sw_sketch_mgr.CreateLine(n1_ip1_km1[0], n1_ip1_km1[1], n1_ip1_km1[2], n1_ip1_k[0], n1_ip1_k[1], n1_ip1_k[2]).Color = int(black_color)
-            
+                            s7 = sw_sketch_mgr.CreateLine(n1_ip1_km1[0], n1_ip1_km1[1], n1_ip1_km1[2], n1_ip1_k[0], n1_ip1_k[1], n1_ip1_k[2])
+                            s7.Color = int(black_color)
+                            strings.append(s7)
+
+            print("3D sketches created")
+
             sw_sketch_mgr.Insert3DSketch(True)
+
+            print("Finalized sketch addition")
+
+            sw_feature_mgr.InsertWeldmentFeature
+
+            print("Weldment feature inserted")
+
+            sw_model.ClearSelection2(True)
+
+            print("Selections cleared")
+
+            for rod in helix1Rods:
+                rodGroup = sw_feature_mgr.CreateStructuralMemberGroup
+                rodGroup.Segments = VARIANT(pythoncom.VT_ARRAY | pythoncom.VT_DISPATCH, tuple([rod]))
+                rodGroupArray = VARIANT(pythoncom.VT_ARRAY | pythoncom.VT_DISPATCH, [rodGroup])
+                sw_feature_mgr.InsertStructuralWeldment4(DHT.barAddress, 1, False, rodGroupArray)
+            
+            for rod in helix2Rods:
+                rodGroup = sw_feature_mgr.CreateStructuralMemberGroup
+                rodGroup.Segments = VARIANT(pythoncom.VT_ARRAY | pythoncom.VT_DISPATCH, tuple([rod]))
+                rodGroupArray = VARIANT(pythoncom.VT_ARRAY | pythoncom.VT_DISPATCH, [rodGroup])
+                sw_feature_mgr.InsertStructuralWeldment4(DHT.barAddress, 1, False, rodGroupArray)
+            
+            for string in strings:
+                stringGroup = sw_feature_mgr.CreateStructuralMemberGroup
+                stringGroup.Segments = VARIANT(pythoncom.VT_ARRAY | pythoncom.VT_DISPATCH, tuple([string]))
+                stringGroupArray = VARIANT(pythoncom.VT_ARRAY | pythoncom.VT_DISPATCH, [stringGroup])
+                sw_feature_mgr.InsertStructuralWeldment4(DHT.stringAddress, 1, False, stringGroupArray)
+
+            print("Rods inserted")
+
+            sw_model.ClearSelection2(True)
+    
+            '''
+            # Step 1: Select the base sphere feature 
+            # Use Mark = 1 for the feature to be patterned.
+            # Change "Revolve1" to match your base feature's name in the tree.
+            feat_selected = sw_model.Extension.SelectByID2("Revolve1", "BODYFEATURE", 0, 0, 0, False, 1, None, 0)
+            
+            # Step 2: Append the 3D Sketch containing your points to the selection
+            # Use Mark = 4 to denote the driving sketch for the pattern.
+            # Change "3DSketch1" to match your sketch's name.
+            sketch_selected = sw_model.Extension.SelectByID2("3DSketch1", "SKETCH", 0, 0, 0, True, 4, None, 0)
+
+            if not (feat_selected and sketch_selected):
+                print("Selection failed. Double-check your feature and sketch names.")
+                return
+
+            # Step 3: Execute the Sketch Driven Pattern
+            swFeatMgr = sw_model.FeatureManager
+            
+            # InsertSketchDrivenPattern3 parameters depend on your exact geometric needs, 
+            # but the defaults (using the sketch centroid/points) usually work perfectly.
+            # Signature: (ReferencePoint, UseCentroid, GeometryPattern, ... )
+            pattern_feature = swFeatMgr.InsertSketchDrivenPattern3(1, False, False, False, False, False)
+            
+            if pattern_feature:
+                print("Success: Spheres patterned at all 3D sketch points.")
+            else:
+                print("Error: Failed to generate the pattern.")
+
+            '''
+
             sw_model.ActiveView.EnableGraphicsUpdate = True
+
+            print("Graphics update is enabled")
+        
             sw_model.ForceRebuild3(False)
 
         except Exception as e:
             print("Error exporting to SolidWorks:", e)
 
-structure = DHT(p=4, q=5, L=1, a=(1/16), Ld=1.1)
+structure = DHT(p=4, q=4, L=0.5, a=(1/16), Ld=0.6)
 #structure.visualize(showList=[True, True, True, True, True, True, True, True])
 structure.exportCoordinatesSW(scaling=1)
